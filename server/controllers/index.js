@@ -2,7 +2,7 @@
 const models = require('../models');
 
 // get the Cat model
-const { Cat } = models;
+const { Cat, Dog} = models;
 
 // default fake data so that we have something to work with until we make a real Cat
 const defaultData = {
@@ -83,8 +83,73 @@ const hostPage3 = (req, res) => {
   res.render('page3');
 };
 
+const hostPage4 = async (req, res) => {
+  
+  try {
+    const docs = await Dog.find({}).lean().exec();
+    return res.render('page4', { dogs: docs });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: 'failed to find cats' });
+  }
+}
+
 // Get name will return the name of the last added cat.
 const getName = (req, res) => res.json({ name: lastAdded.name });
+
+// Function to create a new dog in the database
+const newDog = async (req, res) =>{
+  if (!req.body.name || !req.body.breed || !req.body.age) {
+    // If they are missing data, send back an error.
+    return res.status(400).json({ error: 'name, breed and age are all required' });
+  }
+
+  //puts the form data into an object
+  const dogData = {
+    name: req.body.name,
+    breed: req.body.breed,
+    age: req.body.age,
+  }
+
+  const newDogObj = new Dog(dogData);
+
+  try {
+    await newDogObj.save();
+    return res.json({
+      name: newDogObj.name,
+      breed: newDogObj.breed,
+      age: newDogObj.age,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: 'failed to create dog' });
+  }
+}
+
+// Function that increments age of found dogs
+const findDog = async (req, res) => {
+  if (!req.query.name) {
+    return res.status(400).json({ error: 'Name is required to perform a search' });
+  }
+  try {
+
+    const doc = await Dog.findOne({ name: req.query.name }).exec();
+
+    if (!doc) {
+      return res.json({ error: 'No dogs found' });
+    }
+
+    doc.age++;
+
+    await doc.save();
+    
+    return res.json({ name: doc.name, breed: doc.breed, age: doc.age });
+  } catch (err) {
+    // If there is an error, log it and send the user an error message.
+    console.log(err);
+    return res.status(500).json({ error: 'Something went wrong' });
+  }
+}
 
 // Function to create a new cat in the database
 const setName = async (req, res) => {
@@ -183,6 +248,7 @@ const searchName = async (req, res) => {
     }
 
     // Otherwise, we got a result and will send it back to the user.
+  
     return res.json({ name: doc.name, beds: doc.bedsOwned });
   } catch (err) {
     // If there is an error, log it and send the user an error message.
@@ -241,9 +307,12 @@ module.exports = {
   page1: hostPage1,
   page2: hostPage2,
   page3: hostPage3,
+  page4: hostPage4,
   getName,
   setName,
   updateLast,
   searchName,
+  newDog,
+  findDog,
   notFound,
 };
